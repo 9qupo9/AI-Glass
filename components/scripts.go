@@ -865,18 +865,17 @@ function fitJumpToVideo(jump) {
         landing: Math.floor(jump.totalFrames * 0.8),
         exit: jump.totalFrames - 1
       };
-  } else if (videoPlayer.src.includes('real_lutz_fall.mp4')) {
+  } else if (videoPlayer.src.includes('single_jump.mp4')) {
       jump.startTime = 0.0;
       const dur = videoPlayer.duration && videoPlayer.duration !== Infinity ? videoPlayer.duration : 16.0;
       jump.endTime = dur;
       jump.totalFrames = Math.floor(dur * 30);
       
-      // ВАЖНО: Физические тайминги реального видео, чтобы игнорировать шум при разгоне!
       jump.keyframes = {
-        entry: 0,
-        takeoff: Math.floor(10.5 * 30), // Прыжок начинается на 10.5с
-        air: Math.floor(11.5 * 30),
-        landing: Math.floor(13.5 * 30), // Приземление/падение на 13.5с
+        entry: Math.floor(jump.totalFrames * 0.1),
+        takeoff: Math.floor(jump.totalFrames * 0.3),
+        air: Math.floor(jump.totalFrames * 0.5),
+        landing: Math.floor(jump.totalFrames * 0.8),
         exit: jump.totalFrames - 1
       };
   } else {

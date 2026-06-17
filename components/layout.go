@@ -50,7 +50,7 @@ func (v *VideoPanelBlock) HTML() string {
 			</div>
 			
 			<div class="video-container">
-				<video id="video-player" class="video-player" src="/assets/real_lutz_fall.mp4" muted playsinline preload="metadata"></video>
+				<video id="video-player" class="video-player" src="/assets/single_jump.mp4" muted playsinline preload="metadata"></video>
 				<canvas id="video-canvas" class="video-canvas" width="800" height="450"></canvas>
 				
 				<div class="video-overlay-ui">
