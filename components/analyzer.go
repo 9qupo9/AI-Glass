@@ -253,24 +253,18 @@ func AnalyzeJump(history []FrameData) AnalysisResult {
 		}
 	}
 
-	// Если высота прыжка меньше 4 единиц — это не прыжок
-	if maxHipYBefore-minHipY < 4.0 {
+	// Если высота прыжка меньше 1.5 единиц — это не прыжок
+	if maxHipYBefore-minHipY < 1.5 {
 		return AnalysisResult{Status: "analyzing", Classification: "Gliding...", ProbabilityText: "Waiting for jump..."}
 	}
 
-	// ПРЕДОХРАНИТЕЛЬ ОТ АМНЕЗИИ: Буфер движется вперед. Когда прыжок "уезжает" влево,
-	// кадры захода на прыжок (первые 20 кадров ДО отрыва) стираются из памяти.
-	// Если мы продолжим анализ, сервер "забудет", какое было ребро (Flutz пропадет).
-	// Поэтому мы возвращаем статус "analyzing", чтобы фронтенд перестал обновлять карточку
-	// и навсегда заморозил идеальный диагноз, пока не начнется НОВЫЙ прыжок!
-	if takeoffIdx < 20 {
+	// ПРЕДОХРАНИТЕЛЬ ОТ АМНЕЗИИ:
+	if takeoffIdx < 5 {
 		return AnalysisResult{Status: "analyzing", Classification: "Jump completed", ProbabilityText: "Waiting for next jump..."}
 	}
 
 	// ПРЕДОХРАНИТЕЛЬ ОТ "ВСТАВАНИЯ СО ЛЬДА":
-	// Если от самого глубокого приседа до пика проходит слишком много времени (>25 кадров),
-	// это не прыжок, это фигурист медленно встает со льда после падения!
-	if peakIdx-takeoffIdx > 25 {
+	if peakIdx-takeoffIdx > 60 {
 		return AnalysisResult{Status: "analyzing", Classification: "Recovering...", ProbabilityText: "Getting up from ice"}
 	}
 
