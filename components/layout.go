@@ -145,12 +145,8 @@ func (s *SidebarBlock) HTML() string {
 				</div>
 			</div>
 
-			<div class="panel-card" style="margin-top: 24px;">
-				<div class="panel-title">Session Jump History</div>
-				<div id="jump-history-container" style="display: flex; flex-direction: column; gap: 8px;">
-					<div style="color: #94A3B8; font-size: 13px; font-style: italic;">No jumps recorded yet in this session.</div>
-				</div>
-			</div>
+			<!-- Session Jump History Panel Removed completely per user request -->
+
 		</div>
 	</div>
 	`
