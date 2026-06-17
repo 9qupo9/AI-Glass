@@ -58,12 +58,12 @@ type AnalysisResult struct {
 	AnomalyType string `json:"anomaly_type"`
 
 	// Детализированные нарушения по ISU
-	Violations  []string `json:"violations"`   // Список всех нарушений
-	PreRotation bool     `json:"pre_rotation"` // Пре-ротация
-	AxisTilt    float64  `json:"axis_tilt"`    // Максимальный угол наклона оси в воздухе (градусы)
-	StepOut     bool     `json:"step_out"`     // Степаут при приземлении
-	HandTouch   bool     `json:"hand_touch"`   // Касание льда рукой
-	ComboMissed bool     `json:"combo_missed"` // Незавершенный каскад
+	Violations  []string `json:"violations"`    // Список всех нарушений
+	PreRotation bool     `json:"pre_rotation"`  // Пре-ротация
+	AxisTilt    float64  `json:"axis_tilt"`     // Максимальный угол наклона оси в воздухе (градусы)
+	StepOut     bool     `json:"step_out"`      // Степаут при приземлении
+	HandTouch   bool     `json:"hand_touch"`    // Касание льда рукой
+	ComboMissed bool     `json:"combo_missed"`  // Незавершенный каскад
 	HasFlipTurn bool     `json:"has_flip_turn"` // Вектор движения (разворот) перед прыжком
 }
 
