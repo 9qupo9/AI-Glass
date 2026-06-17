@@ -201,36 +201,56 @@ func detectFlipTurn(history []FrameData) bool {
 	return false
 }
 
-// detectAxelSetup анализирует, едет ли фигурист лицом вперед перед отрывом.
-// Сопоставляем вектор глобальной скорости и вектор направления стопы.
+// Рассчитывает средний вектор направления корпуса (перпендикуляр к линии плеч)
+func calculateBodyDirection(f FrameData) (float64, float64) {
+	// Вектор между левым и правым плечом
+	dx := f.ShoulderR.X - f.ShoulderL.X
+	dy := f.ShoulderR.Y - f.ShoulderL.Y
+	
+	// Перпендикуляр к линии плеч (направление груди)
+	return -dy, dx
+}
+
+// detectAxelSetup анализирует, едет ли фигурист лицом вперед перед отрывом, используя скалярное произведение
 func detectAxelSetup(history []FrameData, takeoffIdx int) bool {
 	if takeoffIdx < 5 {
 		return false
 	}
 	
-	// Вычисляем вектор глобального движения таза за последние 5 кадров перед прыжком
-	dx := ((history[takeoffIdx].HipL.X + history[takeoffIdx].HipR.X) / 2) - ((history[takeoffIdx-5].HipL.X + history[takeoffIdx-5].HipR.X) / 2)
+	startFrame := history[takeoffIdx-5]
+	endFrame := history[takeoffIdx]
+
+	// Вектор общего движения спортсмена по катку (вектор скорости)
+	moveX := endFrame.HipL.X - startFrame.HipL.X
+	moveY := endFrame.HipL.Y - startFrame.HipL.Y
+
+	// Направление корпуса на финальном шаге перед отрывом
+	bodyX, bodyY := calculateBodyDirection(endFrame)
+
+	// Скалярное произведение векторов движения и направления корпуса
+	dotProduct := moveX*bodyX + moveY*bodyY
 	
-	// Определяем опорную ногу перед отрывом (та, что ниже по экрану, т.е. с большим Y)
-	var takeoffFoot Point
-	var takeoffAnkle Point
-	if history[takeoffIdx].AnkleL.Y > history[takeoffIdx].AnkleR.Y {
-		takeoffFoot = history[takeoffIdx].FootL
-		takeoffAnkle = history[takeoffIdx].AnkleL
-	} else {
-		takeoffFoot = history[takeoffIdx].FootR
-		takeoffAnkle = history[takeoffIdx].AnkleR
+	// Если скалярное произведение положительное — корпус сонаправлен с движением (лицом вперед)
+	return dotProduct > 0
+}
+
+// detectRotation считает количество пересечений плеч по X (каждое пересечение = 180 градусов)
+func detectRotation(history []FrameData) float64 {
+	crossings := 0
+	if len(history) < 2 {
+		return 0
 	}
 	
-	// Вектор направления стопы (куда смотрит мысок)
-	footDx := takeoffFoot.X - takeoffAnkle.X
+	wasLeftBigger := history[0].ShoulderL.X > history[0].ShoulderR.X
 	
-	// Фигурист катится вправо (dx > 0) и мысок смотрит вправо (footDx > 0) -> Лицом вперед
-	// Фигурист катится влево (dx < 0) и мысок смотрит влево (footDx < 0) -> Лицом вперед
-	if (dx > 0.2 && footDx > 0.0) || (dx < -0.2 && footDx < 0.0) {
-		return true
+	for i := 1; i < len(history); i++ {
+		isLeftBigger := history[i].ShoulderL.X > history[i].ShoulderR.X
+		if isLeftBigger != wasLeftBigger {
+			crossings++
+			wasLeftBigger = isLeftBigger
+		}
 	}
-	return false
+	return float64(crossings * 180)
 }
 
 func AnalyzeJump(history []FrameData) AnalysisResult {
@@ -316,6 +336,27 @@ func AnalyzeJump(history []FrameData) AnalysisResult {
 	}
 	hasFlipTurn := detectFlipTurn(approachFrames)
 	isAxelSetup := detectAxelSetup(history, takeoffIdx)
+	
+	rotationDegrees := detectRotation(history)
+	
+	// Backend deterministic classification
+	classification := "Unknown Jump"
+	baseScore := 0.0
+	
+	if isAxelSetup {
+		if rotationDegrees >= 480.0 && rotationDegrees < 700.0 {
+			classification = "1A (Single Axel)"
+			baseScore = 1.10
+		} else if rotationDegrees >= 700.0 {
+			classification = "2A (Double Axel)"
+			baseScore = 3.30
+		}
+	} else {
+		if rotationDegrees >= 540.0 {
+			classification = "2x Double Jump (Review Required)"
+			baseScore = 1.30
+		}
+	}
 
 	// Вычисляем показатели, используя написанные детекторы
 	axisTilt := detectAxisTilt(history)
@@ -344,17 +385,11 @@ func AnalyzeJump(history []FrameData) AnalysisResult {
 
 	return AnalysisResult{
 		Status:          "detected",
-		Classification:  "Jump detected",
-		ShoulderAngle:   0,
+		Classification:  classification,
+		BaseScore:       baseScore,
+		ProbabilityText: "Biometrics verified locally. Detailed coaching insights generated below.",
+		ShoulderAngle:   rotationDegrees,
 		AnkleLean:       ankleLean,
-		ProbabilityText: "Biometric recording finished. Sending to AI...",
-		BaseScore:       0,
-		GOE:             0,
-		GOEDeductions:   0,
-		FinalScore:      0,
-		ScoreReason:     "Awaiting AI analysis.",
-		DiagnosticCause: "Processing frame data with SkateEye AI...",
-		DiagnosticFix:   "Please wait for the AI coach...",
 		IsAnomaly:       len(violations) > 0,
 		AnomalyType:     "",
 		Violations:      violations,
