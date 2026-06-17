@@ -58,21 +58,32 @@ Y растет вниз. Z - глубина. X - горизонталь.
 		prompt += `Также тебе передан массив successHistory - это эталонный (удачный) прыжок этого же фигуриста.
 ВАЖНО: Основной анализ и оценки ( classification, score, violations ) делай по текущему прыжку (history).
 Однако в поле "diagnosticFix" и "diagnosticCause" обязательно сравни текущий прыжок с эталонным (successHistory) и укажи конкретные отличия, которые привели к ошибке в текущем прыжке.
+		return AnalysisResult{Status: "error", DiagnosticFix: "Please set the Mistral API key."}, nil
+	}
+
+	prompt := `You are SkateEye, an elite AI figure skating coach. Analyze the biomechanical data provided by the MediaPipe tracker and give short, actionable feedback to the skater. IMPORTANT: ANSWER STRICTLY IN ENGLISH. Explain what failed and how to fix it based on the ISU rules.
+In the history array, you have the frames of the current (possibly failed) jump (from start of squat to landing).
+Y grows downwards. Z is depth. X is horizontal.
+`
+	if len(successHistory) > 0 {
+		prompt += `You have also been provided with a successHistory array - this is the reference (successful) jump by the same skater.
+IMPORTANT: Do your main analysis and evaluations (classification, score, violations) based on the current jump (history).
+However, in the "diagnosticFix" and "diagnosticCause" fields, you must compare the current jump with the reference one (successHistory) and point out the specific differences that led to the error in the current jump.
 `
 	}
 
-	prompt += `Рассчитай:
-1. Какой это прыжок (Lutz, Flip, Axel, Loop, Toe Loop, Salchow)? Учитывай ребро отрыва (Ankle Lean) и заход.
-2. Сколько было полных оборотов? (плечи X перекрещиваются, 1 оборот = 360 градусов). Умножь на 180 за каждое пересечение (за заход Акселя +180).
-3. Наклон оси (Axis Tilt) в градусах.
-4. Было ли падение (таз упал на лед после приземления)?
-5. Напиши вердикт тренера.
+	prompt += `Calculate:
+1. What is the jump (Lutz, Flip, Axel, Loop, Toe Loop, Salchow)? Consider the edge at takeoff (Ankle Lean) and entry.
+2. How many full rotations? (shoulders X cross, 1 rotation = 360 degrees. Multiply by 180 for each crossing; +180 for Axel setup).
+3. Axis tilt in degrees.
+4. Was there a fall (pelvis touched the ice after landing)?
+5. Write a coach's verdict.
 
-ВАЖНО: ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ! Все текстовые поля (scoreReason, diagnosticCause, diagnosticFix, violations, classification) должны быть на русском.
+IMPORTANT: ANSWER STRICTLY IN ENGLISH. All text fields (scoreReason, diagnosticCause, diagnosticFix, violations, classification) must be in English.
 
-Требуемый формат ответа (строгий JSON, ключи должны совпадать точно):
+Required response format (strict JSON, keys must match exactly):
 {
-  "classification": "Название прыжка и нарушения в скобках, например Triple Lutz (Fall)",
+  "classification": "Name of the jump and violations in parentheses, e.g., Triple Lutz (Fall)",
   "shoulderAngle": 1080,
   "ankleLean": 15.5,
   "probabilityText": "AI Matrix: Confidence 99%",
@@ -110,25 +121,25 @@ Y растет вниз. Z - глубина. X - горизонталь.
 	}
 
 	// Вставляем наш текст в промпт для Mistral
-	axelStr := "СПИНОЙ ВПЕРЕД (Не Аксель)"
+	axelStr := "BACKWARD TAKEOFF (Not an Axel)"
 	if preAnalysis.IsAxelSetup {
-		axelStr = "ЛИЦОМ ВПЕРЕД (ЭТО СТРОГО АКСЕЛЬ!)"
+		axelStr = "FORWARD TAKEOFF (THIS IS STRICTLY AN AXEL!)"
 	}
 
 	prompt += fmt.Sprintf(`
-ВНИМАНИЕ! Бэкенд уже рассчитал для тебя ключевые параметры:
-- Направление захода: %s
-- Траектория захода: %s
-- Ребро в момент отрыва: %s
-- Угол наклона оси в воздухе: %.1f градусов
-- Статус приземления: %s
-- Пре-ротация (ранний разворот плеч): %v
+ATTENTION! The backend has already calculated key parameters for you:
+- Takeoff direction: %s
+- Entry trajectory: %s
+- Edge at takeoff: %s
+- Axis tilt in the air: %.1f degrees
+- Landing status: %s
+- Pre-rotation (early shoulder rotation): %v
 
-ПРАВИЛА ISU:
-0. ЕСЛИ ЗАХОД "ЛИЦОМ ВПЕРЕД" — ЭТО 100%% АКСЕЛЬ (Axel). ТЕБЕ ЗАПРЕЩЕНО НАЗЫВАТЬ ЕГО ФЛИПОМ, ЛУТЦЕМ ИЛИ САЛЬХОВОМ. Выбирай только между Single Axel, Double Axel или Triple Axel (в зависимости от оборотов).
-1. FLIP (Флип): правильный прыжок исполняется строго с ВНУТРЕННЕГО ребра + заход с разворота (тройки). Если ребро наружное — это ошибка [e] (Lip).
-2. LUTZ (Лутц): правильный прыжок исполняется строго с НАРУЖНОГО ребра + заход по прямой/дуге без разворота. Если ребро внутреннее — это ошибка [e] (Flutz).
-3. Наклон оси более 15-20 градусов вызывает падение и огромные штрафы GOE.
+ISU RULES:
+0. IF TAKEOFF IS "FORWARD" — IT IS 100%% AN AXEL. YOU ARE FORBIDDEN TO CALL IT A FLIP, LUTZ, OR SALCHOW. Choose only between Single Axel, Double Axel, or Triple Axel (depending on rotations).
+1. FLIP: Correct jump is strictly from an INSIDE edge + turn entry (three-turn). If the edge is outside — it's an [e] error (Lip).
+2. LUTZ: Correct jump is strictly from an OUTSIDE edge + straight/curve entry without a turn. If the edge is inside — it's an [e] error (Flutz).
+3. Axis tilt over 15-20 degrees causes falls and massive GOE deductions.
 
 `, axelStr, turnType, edgeType, preAnalysis.AxisTilt, landingStatus, preAnalysis.PreRotation)
 

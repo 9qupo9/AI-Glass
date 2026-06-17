@@ -660,11 +660,11 @@ function classifyJump(joints) {
                             classInfo.style.display = 'block'; // Показываем блок с синей полосой обратно!
                             let html = '<div style="color: #E2E8F0; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">' +
                                     '<svg viewBox="0 0 24 24" width="14" height="14" fill="#A855F7"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
-                                    'SkateEye AI: Полный биомеханический анализ' +
+                                    'SkateEye AI: Full Biomechanics Analysis' +
                                 '</div>' +
-                                'ИИ Телеметрия: Вращение ' + (coachData.shoulderAngle||0).toFixed(0) + '°, Наклон конька ' + (coachData.ankleLean||0).toFixed(1) + 'px.' +
-                                '<br><span style="color: #A855F7; font-weight: 600; margin-top: 4px; display: inline-block;">Нейросеть:</span> ' + (coachData.probabilityText||"Уверен");
-                            html += '<br>Распознанный элемент: <span style="color: #F8FAFC; font-weight: bold; background: rgba(168, 85, 247, 0.4); border: 1px solid rgba(168, 85, 247, 0.8); padding: 1px 6px; border-radius: 3px; margin-left: 4px;">' + coachData.classification + '</span>';
+                                'AI Telemetry: Rotation ' + (coachData.shoulderAngle||0).toFixed(0) + '°, Ankle Lean ' + (coachData.ankleLean||0).toFixed(1) + 'px.' +
+                                '<br><span style="color: #A855F7; font-weight: 600; margin-top: 4px; display: inline-block;">Neural Engine:</span> ' + (coachData.probabilityText||"Confident");
+                            html += '<br>AI Target locked as: <span style="color: #F8FAFC; font-weight: bold; background: rgba(168, 85, 247, 0.4); border: 1px solid rgba(168, 85, 247, 0.8); padding: 1px 6px; border-radius: 3px; margin-left: 4px;">' + coachData.classification + '</span>';
                             classInfo.innerHTML = html;
                         }
 
@@ -684,7 +684,7 @@ function classifyJump(joints) {
                                 violationsContainer.innerHTML = vHtml;
                                 violationsContainer.style.display = 'block';
                             } else {
-                                violationsContainer.innerHTML = '<div style="margin-top: 8px; border-top: 1px solid rgba(16,185,129,0.3); padding-top: 6px; color: #34D399; font-size: 11px; font-weight: 600;">✅ Чистый прыжок по версии ИИ!</div>';
+                                violationsContainer.innerHTML = '<div style="margin-top: 8px; border-top: 1px solid rgba(16,185,129,0.3); padding-top: 6px; color: #34D399; font-size: 11px; font-weight: 600;">✅ Clean jump according to AI!</div>';
                                 violationsContainer.style.display = 'block';
                             }
                         }
@@ -698,12 +698,12 @@ function classifyJump(joints) {
 
                         // Обновляем диагноз
                         let jumpDataHtml = '<div style="margin-bottom: 8px; font-weight: bold; color: #E2E8F0; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);">';
-                        jumpDataHtml += 'Классификация ИИ: <span style="color: #A855F7;">' + (coachData.classification || 'Unknown') + '</span>';
+                        jumpDataHtml += 'AI Classified Element: <span style="color: #A855F7;">' + (coachData.classification || 'Unknown') + '</span>';
                         jumpDataHtml += '</div>';
                         diagCauseElem.innerHTML = jumpDataHtml + '<div style="line-height: 1.5; margin-top: 8px;">' + formatAiText(coachData.diagnosticCause) + '</div>';
                         diagFixElem.innerHTML = '<div style="color: #34D399; font-weight: 600; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">' + 
-                                                '<span>Совет от ИИ-тренера:</span>' +
-                                                '<button id="btn-save-reference" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #10B981; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s;">Сделать эталоном</button>' +
+                                                '<span>Advice from AI Coach:</span>' +
+                                                '<button id="btn-save-reference" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #10B981; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s;">Set as Reference</button>' +
                                                 '</div>' + 
                                                 '<div style="line-height: 1.5;">' + formatAiText(coachData.diagnosticFix) + '</div>';
                         
@@ -844,10 +844,10 @@ async function processVideoFrameLoop() {
 }
 
 const COACH_CHAT_RESPONSES = {
-  default: "Отличный вопрос! Для этого элемента критически важно контролировать плечи на заходе. Не раскрывайте руки слишком рано.",
-  axis: "Чтобы исправить завал оси, держите корпус строго вертикально во время толчка. Вектор силы должен быть направлен вверх, а не вперед.",
-  landing: "Для стабилизации выезда: сразу отводите свободную ногу назад после касания зубцом.",
-  upgrade: "Перейдите на PRO, чтобы разблокировать 3D-трекинг суставов в реальном времени, безлимитные видео и личные консультации."
+  default: "Great question! For this element, it's critical to control shoulder alignment during entry. Avoid opening your arms too early.",
+  axis: "To fix axis tilt, keep your torso strictly vertical during takeoff. Direct your takeoff force vector upwards, not forwards.",
+  landing: "To stabilize landing and avoid exit delay: open your free leg backwards immediately upon toe-pick contact.",
+  upgrade: "Upgrade to PRO to unlock real-time 3D joint tracking, unlimited videos, and personal consultations."
 };
 
 function fitJumpToVideo(jump) {
@@ -923,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectJump('lutz');
   }
   
-  addChatMessage('coach', 'Привет! Я ваш ИИ-тренер. Я полностью проанализировал ваше видео. MediaPipe Tracker инициализирован. Спросите меня, как улучшить технику!');
+  addChatMessage('coach', 'Hi! I am your AI Coach. I have thoroughly analyzed your video. MediaPipe Tracker initialized. Ask me how to improve your technique!');
 });
 
 function resetAnalysisState() {

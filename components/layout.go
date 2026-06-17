@@ -132,15 +132,15 @@ func (s *SidebarBlock) HTML() string {
 			</div>
 
 			<div class="panel-card" style="background: transparent; border: none; box-shadow: none; padding: 0; margin-top: 24px;">
-				<div class="panel-title">Быстрая диагностика</div>
+				<div class="panel-title">Quick Diagnostics</div>
 				<div id="diagnostics-container" class="diagnostics-grid">
 					<div class="diag-card cause">
-						<div class="diag-header"><span class="diag-icon">🔍</span><span class="diag-title">Анализ ошибок (и успехов)</span></div>
-						<div class="diag-body" id="diag-cause-text">Ожидание анализа...</div>
+						<div class="diag-header"><span class="diag-icon">🔍</span><span class="diag-title">Why It Failed (or Succeeded)</span></div>
+						<div class="diag-body" id="diag-cause-text">Awaiting analysis...</div>
 					</div>
 					<div class="diag-card fix">
-						<div class="diag-header"><span class="diag-icon">🛠️</span><span class="diag-title">Как это исправить</span></div>
-						<div class="diag-body" id="diag-fix-text">Ожидание анализа...</div>
+						<div class="diag-header"><span class="diag-icon">🛠️</span><span class="diag-title">How to Fix It</span></div>
+						<div class="diag-body" id="diag-fix-text">Awaiting analysis...</div>
 					</div>
 				</div>
 			</div>
