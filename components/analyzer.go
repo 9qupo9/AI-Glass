@@ -65,6 +65,7 @@ type AnalysisResult struct {
 	HandTouch   bool     `json:"hand_touch"`    // Касание льда рукой
 	ComboMissed bool     `json:"combo_missed"`  // Незавершенный каскад
 	HasFlipTurn bool     `json:"has_flip_turn"` // Вектор движения (разворот) перед прыжком
+	IsAxelSetup bool     `json:"is_axel_setup"` // Заход лицом вперед (Аксель)
 }
 
 // =============================================================================
@@ -200,6 +201,38 @@ func detectFlipTurn(history []FrameData) bool {
 	return false
 }
 
+// detectAxelSetup анализирует, едет ли фигурист лицом вперед перед отрывом.
+// Сопоставляем вектор глобальной скорости и вектор направления стопы.
+func detectAxelSetup(history []FrameData, takeoffIdx int) bool {
+	if takeoffIdx < 5 {
+		return false
+	}
+	
+	// Вычисляем вектор глобального движения таза за последние 5 кадров перед прыжком
+	dx := ((history[takeoffIdx].HipL.X + history[takeoffIdx].HipR.X) / 2) - ((history[takeoffIdx-5].HipL.X + history[takeoffIdx-5].HipR.X) / 2)
+	
+	// Определяем опорную ногу перед отрывом (та, что ниже по экрану, т.е. с большим Y)
+	var takeoffFoot Point
+	var takeoffAnkle Point
+	if history[takeoffIdx].AnkleL.Y > history[takeoffIdx].AnkleR.Y {
+		takeoffFoot = history[takeoffIdx].FootL
+		takeoffAnkle = history[takeoffIdx].AnkleL
+	} else {
+		takeoffFoot = history[takeoffIdx].FootR
+		takeoffAnkle = history[takeoffIdx].AnkleR
+	}
+	
+	// Вектор направления стопы (куда смотрит мысок)
+	footDx := takeoffFoot.X - takeoffAnkle.X
+	
+	// Фигурист катится вправо (dx > 0) и мысок смотрит вправо (footDx > 0) -> Лицом вперед
+	// Фигурист катится влево (dx < 0) и мысок смотрит влево (footDx < 0) -> Лицом вперед
+	if (dx > 0.2 && footDx > 0.0) || (dx < -0.2 && footDx < 0.0) {
+		return true
+	}
+	return false
+}
+
 func AnalyzeJump(history []FrameData) AnalysisResult {
 	if len(history) < 15 {
 		return AnalysisResult{Status: "analyzing", Classification: "Approach phase...", ProbabilityText: "Analyzing approach..."}
@@ -282,6 +315,7 @@ func AnalyzeJump(history []FrameData) AnalysisResult {
 		approachFrames = history[:takeoffIdx]
 	}
 	hasFlipTurn := detectFlipTurn(approachFrames)
+	isAxelSetup := detectAxelSetup(history, takeoffIdx)
 
 	// Вычисляем показатели, используя написанные детекторы
 	axisTilt := detectAxisTilt(history)
@@ -330,6 +364,7 @@ func AnalyzeJump(history []FrameData) AnalysisResult {
 		HandTouch:       handTouch,
 		ComboMissed:     comboMissed,
 		HasFlipTurn:     hasFlipTurn,
+		IsAxelSetup:     isAxelSetup,
 	}
 }
 
