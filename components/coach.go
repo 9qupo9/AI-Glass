@@ -49,18 +49,6 @@ func GenerateCoachAdvice(ctx context.Context, history []FrameData, successHistor
 		return AnalysisResult{Status: "error", DiagnosticFix: "Пожалуйста, установите ключ Mistral API."}, nil
 	}
 
-	prompt := `Ты - профессиональный тренер по фигурному катанию мирового класса и эксперт по биомеханике ISU. 
-Твоя задача - проанализировать сырые координаты (JSON) скелета фигуриста (30 fps) во время текущего прыжка и вернуть СТРОГИЙ JSON.
-В массиве history лежат кадры текущего (возможно неудачного) прыжка (от начала приседа до приземления).
-Y растет вниз. Z - глубина. X - горизонталь.
-`
-	if len(successHistory) > 0 {
-		prompt += `Также тебе передан массив successHistory - это эталонный (удачный) прыжок этого же фигуриста.
-ВАЖНО: Основной анализ и оценки ( classification, score, violations ) делай по текущему прыжку (history).
-Однако в поле "diagnosticFix" и "diagnosticCause" обязательно сравни текущий прыжок с эталонным (successHistory) и укажи конкретные отличия, которые привели к ошибке в текущем прыжке.
-		return AnalysisResult{Status: "error", DiagnosticFix: "Please set the Mistral API key."}, nil
-	}
-
 	prompt := `You are SkateEye, an elite AI figure skating coach. Analyze the biomechanical data provided by the MediaPipe tracker and give short, actionable feedback to the skater. IMPORTANT: ANSWER STRICTLY IN ENGLISH. Explain what failed and how to fix it based on the ISU rules.
 In the history array, you have the frames of the current (possibly failed) jump (from start of squat to landing).
 Y grows downwards. Z is depth. X is horizontal.
