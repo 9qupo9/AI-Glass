@@ -164,8 +164,8 @@ function drawOpenPoseOverlay(canvasIncorrect, jump, currentFrameIndex) {
   if (!currentSkeleton) return;
   
   const incOptions = {
-    color: '#3B82F6', 
-    glowColor: 'rgba(59, 130, 246, 0.4)',
+    color: '#10B981', 
+    glowColor: 'rgba(16, 185, 129, 0.4)',
     lineWidth: 3,
     drawJoints: true,
     scaleFactor: 1.0,
@@ -461,24 +461,41 @@ let videoPlayer = null;
 function formatAiText(text) {
     if (!text) return "";
     
-    // Убираем строки, состоящие только из дефисов (одиночные тире от ИИ)
-    let formatted = text.replace(/^[-\s]+$/gm, '');
+    let lines = text.split('\n').filter(l => l.trim().length > 0);
     
-    // Убираем лишние пробелы по краям
-    formatted = formatted.trim();
+    if (lines.length === 1 && text.includes('. ')) {
+        const sentences = text.split('. ').map(s => s.trim() + (s.endsWith('.') ? '' : '.'));
+        if (sentences.length > 1) {
+            let html = '<div style="color: #F8FAFC; font-weight: 500; margin-bottom: 12px; font-size: 14px;">' + sentences[0] + '</div>';
+            html += '<ul style="margin-left: 0; padding-left: 0; list-style-type: none; display: flex; flex-direction: column; gap: 8px;">';
+            for(let i=1; i<sentences.length; i++) {
+                if(sentences[i].length > 2 && sentences[i] !== '.') {
+                    html += '<li style="position: relative; padding-left: 16px; color: #A1A1AA; font-size: 13px;">';
+                    html += '<span style="position: absolute; left: 0; top: 6px; width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></span>';
+                    html += sentences[i] + '</li>';
+                }
+            }
+            html += '</ul>';
+            return html;
+        }
+    }
     
-    // Сворачиваем 3 и более переносов строк в 2 (чтобы не было огромных дыр)
-    formatted = formatted.replace(/\n{3,}/g, '\n\n');
-    
-    // Ищем списки вида "1) " или "2. " (даже если они идут в одну строку)
-    // Добавляем перенос строки перед пунктами и раскрашиваем номер
-    formatted = formatted.replace(/(?:^|\s+)(\d+[\)\.])\s/g, function(match, p1, offset) {
-        let prefix = (offset > 0) ? '<br><br>' : '';
-        return prefix + '<span style="color: #38BDF8; font-weight: bold; margin-right: 4px;">' + p1 + '</span> ';
+    let html = '<ul style="margin-left: 0; padding-left: 0; list-style-type: none; display: flex; flex-direction: column; gap: 10px;">';
+    lines.forEach((line, i) => {
+        let cleanLine = line.trim().replace(/^[-\d\.\)]+\s*/, '');
+        if (!cleanLine) return;
+        
+        if (i === 0) {
+            html += '<li style="color: #F8FAFC; font-weight: 500; margin-bottom: 4px; font-size: 14px;">' + cleanLine + '</li>';
+        } else {
+            html += '<li style="position: relative; padding-left: 16px; color: #A1A1AA; font-size: 13px;">';
+            html += '<span style="position: absolute; left: 0; top: 6px; width: 4px; height: 4px; background: #3b82f6; border-radius: 50%;"></span>';
+            html += cleanLine + '</li>';
+        }
     });
+    html += '</ul>';
     
-    // Меняем оставшиеся \n на <br>
-    return formatted.replace(/\n/g, '<br>');
+    return html;
 }
 
 function renderJumpHistory() {
@@ -717,10 +734,11 @@ function setupEventListeners() {
         const formData = new FormData();
         formData.append('video', file);
 
-        const diagCauseElem = document.getElementById('diag-cause-text');
-        const diagFixElem = document.getElementById('diag-fix-text');
+        const diagCauseElem = document.getElementById('coach-summary-text');
         if (diagCauseElem) diagCauseElem.innerHTML = '<div style="color: #A855F7; font-weight: bold;" id="loading-timer-text">Extracting 2D skeleton and running AI analysis... Time: 0s</div>';
-        if (diagFixElem) diagFixElem.innerHTML = 'Waiting...';
+
+        const issuesTbody = document.getElementById('detected-issues-tbody');
+        if (issuesTbody) issuesTbody.innerHTML = '<tr><td colspan="3" style="padding-top: 12px; color: #A855F7; font-size: 13px; font-weight: bold;">Loading...</td></tr>';
 
         let secondsPassed = 0;
         const uploadTimer = setInterval(() => {
@@ -751,23 +769,155 @@ function setupEventListeners() {
             document.getElementById('hdr-goe').textContent = (finalAnswer.goe>0?"+":"") + (finalAnswer.goe||0).toFixed(2) + " pts";
             document.getElementById('hdr-goe').style.color = finalAnswer.goe < 0 ? "#EF4444" : "#10B981";
             document.getElementById('hdr-score').textContent = (finalAnswer.finalScore||0).toFixed(2) + " pts";
-            document.getElementById('hdr-reason').textContent = finalAnswer.scoreReason || "";
+            
+            const hdrReason = document.getElementById('hdr-reason');
+            if (hdrReason) hdrReason.textContent = finalAnswer.scoreReason || "";
 
-            if (diagCauseElem) {
-                let jumpDataHtml = '<div style="margin-bottom: 8px; font-weight: bold; color: #E2E8F0; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);">';
-                
-                if (finalAnswer.advanced_biometrics) {
-                    const ab = finalAnswer.advanced_biometrics;
-                    jumpDataHtml += '<span style="color: #A855F7;">' + (ab.jump_type || finalAnswer.classification || 'Unknown') + '</span>';
-                } else {
-                    jumpDataHtml += 'AI Classified Element: <span style="color: #A855F7;">' + (finalAnswer.classification || 'Unknown') + '</span>';
+            if (finalAnswer.advanced_biometrics) {
+                const ab = finalAnswer.advanced_biometrics;
+                let airTimeSec = 0;
+                let heightMeters = 0;
+                if (ab.takeoff_frame > 0 && ab.landing_frame > ab.takeoff_frame) {
+                    let framesInAir = ab.landing_frame - ab.takeoff_frame;
+                    airTimeSec = framesInAir / 30.0;
+                    heightMeters = 1.225 * Math.pow(airTimeSec, 2);
+                } else if (ab.rotations > 0) {
+                    // Fallback approximation if frames aren't perfectly set
+                    airTimeSec = 0.5 + (ab.rotations * 0.05);
+                    heightMeters = 1.225 * Math.pow(airTimeSec, 2);
                 }
                 
-                jumpDataHtml += '</div>';
-                diagCauseElem.innerHTML = jumpDataHtml + '<div style="line-height: 1.5; margin-top: 8px;">' + formatAiText(finalAnswer.diagnosticCause) + '</div>';
+                const airTimeVal = document.getElementById('air-time-val');
+                const heightVal = document.getElementById('height-val');
+                if (airTimeVal) airTimeVal.textContent = airTimeSec > 0 ? airTimeSec.toFixed(2) + " s" : "-- s";
+                if (heightVal) heightVal.textContent = heightMeters > 0 ? heightMeters.toFixed(2) + " m" : "-- m";
+
+                const rotationsVal = document.getElementById('rotations-val');
+                const rotationsRingText = document.getElementById('rotations-ring-text');
+                const rotationsRing = document.getElementById('rotations-ring');
+                
+                if (rotationsVal) rotationsVal.textContent = ab.rotations > 0 ? ab.rotations.toFixed(2) : "--";
+                if (rotationsRingText) rotationsRingText.textContent = ab.rotations > 0 ? Math.floor(ab.rotations) : "0";
+                
+                if (rotationsRing && ab.rotations > 0) {
+                    let maxRotations = Math.ceil(ab.rotations);
+                    if (maxRotations === 0) maxRotations = 1;
+                    let percentage = ab.rotations / maxRotations;
+                    if (percentage > 1) percentage = 1;
+                    
+                    let offset = 125.66 - (percentage * 125.66);
+                    rotationsRing.style.strokeDashoffset = offset;
+                    
+                    if (Math.abs(maxRotations - ab.rotations) <= 0.15) {
+                        rotationsRing.style.stroke = "#10B981"; 
+                    } else if (Math.abs(maxRotations - ab.rotations) <= 0.35) {
+                        rotationsRing.style.stroke = "#F59E0B"; 
+                    } else {
+                        rotationsRing.style.stroke = "#EF4444"; 
+                    }
+                }
             }
-            if (diagFixElem) {
-                diagFixElem.innerHTML = '<div style="color: #34D399; font-weight: 600; margin-bottom: 8px;">Advice from AI trainer:</div><div style="line-height: 1.5;">' + formatAiText(finalAnswer.diagnosticFix) + '</div>';
+
+
+            // POPULATE NEW METRICS
+            
+            // 1. Detected Issues
+            const issuesTbody = document.getElementById('detected-issues-tbody');
+            if (issuesTbody) {
+                if (finalAnswer.detected_issues && finalAnswer.detected_issues.length > 0) {
+                    let html = '';
+                    finalAnswer.detected_issues.forEach(issue => {
+                        let impactColor = issue.isu_impact < 0 ? '#EF4444' : '#10B981';
+                        html += '<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">' +
+                            '<td style="padding: 12px 0;">' +
+                                '<div style="color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;">' + (issue.title || 'Issue') + '</div>' +
+                                '<div style="color: #94A3B8; font-size: 12px; line-height: 1.4;">' + (issue.description || '') + '</div>' +
+                            '</td>' +
+                            '<td style="padding: 12px 0; color: #94A3B8; font-size: 12px; vertical-align: top;">' + (issue.moment || '--') + '</td>' +
+                            '<td style="padding: 12px 0; color: ' + impactColor + '; font-size: 13px; font-weight: 700; vertical-align: top;">' +
+                                '<div style="background: ' + (issue.isu_impact < 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)') + '; display: inline-block; padding: 4px 8px; border-radius: 4px;">' +
+                                    (issue.isu_impact > 0 ? '+' : '') + issue.isu_impact.toFixed(1) +
+                                '</div>' +
+                            '</td>' +
+                        '</tr>';
+                    });
+                    issuesTbody.innerHTML = html;
+                } else {
+                    issuesTbody.innerHTML = '<tr><td colspan="3" style="padding-top: 12px; color: #64748B; font-size: 13px;">No issues detected.</td></tr>';
+                }
+            }
+
+            // 2. Coach Summary
+            const summaryText = document.getElementById('coach-summary-text');
+            if (summaryText) {
+                let jumpDataHtml = '<div style="margin-bottom: 12px; font-weight: 800; color: #38BDF8; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);">';
+                if (finalAnswer.advanced_biometrics) {
+                    const ab = finalAnswer.advanced_biometrics;
+                    let edgeStr = ab.edge_type || 'Unknown';
+                    let jumpName = (ab.jump_type || finalAnswer.classification || 'Unknown').toUpperCase();
+                    jumpDataHtml += 'ELEMENT: ' + jumpName + ' (EDGE: ' + edgeStr.toUpperCase() + ')';
+                } else {
+                    let jumpName = (finalAnswer.classification || 'Unknown').toUpperCase();
+                    jumpDataHtml += 'ELEMENT: ' + jumpName;
+                }
+                jumpDataHtml += '</div>';
+
+                summaryText.innerHTML = jumpDataHtml + '<div style="line-height: 1.6;">' + (finalAnswer.coach_summary || 'Analysis complete.') + '</div>';
+            }
+
+            // 3. What to Practice
+            const practiceList = document.getElementById('practice-list');
+            if (practiceList) {
+                if (finalAnswer.what_to_practice && finalAnswer.what_to_practice.length > 0) {
+                    let html = '';
+                    finalAnswer.what_to_practice.forEach(p => {
+                        html += '<div style="background: rgba(255,255,255,0.02); border-radius: 6px; padding: 12px; display: flex; flex-direction: column;">' +
+                            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+                                '<span style="color: #E2E8F0; font-size: 13px; font-weight: 700;">' + (p.title || 'Exercise') + '</span>' +
+                                '<span style="background: rgba(255,255,255,0.05); color: #94A3B8; font-size: 11px; padding: 2px 6px; border-radius: 4px;">' + (p.repetitions || '--') + '</span>' +
+                            '</div>' +
+                            '<div style="color: #94A3B8; font-size: 12px; line-height: 1.4;">' + (p.focus || '') + '</div>' +
+                        '</div>';
+                    });
+                    practiceList.innerHTML = html;
+                } else {
+                    practiceList.innerHTML = '<div style="color: #64748B; font-size: 13px;">No specific practice suggested.</div>';
+                }
+            }
+
+
+            // 5. Judging Systems
+            if (finalAnswer.isu_judging) {
+                const isu = finalAnswer.isu_judging;
+                document.getElementById('isu-current-level').textContent = isu.current_level || '--';
+                document.getElementById('isu-next-goal').textContent = isu.next_goal || '--';
+                document.getElementById('isu-explanation').textContent = isu.explanation || '--';
+                
+                if (isu.badge) {
+                    let parts = isu.badge.split(' ');
+                    let bMain = parts.length > 0 ? parts[0] : '';
+                    let bSub = parts.length > 1 ? parts.slice(1).join(' ') : '';
+                    document.getElementById('isu-badge').innerHTML = bMain + (bSub ? '<br><span style="font-size: 9px; font-weight: 600;">'+bSub+'</span>' : '');
+                }
+
+                const isuReqs = document.getElementById('isu-requirements');
+                if (isuReqs && isu.requirements) {
+                    isuReqs.innerHTML = isu.requirements.map(r => '<li>'+r+'</li>').join('');
+                }
+            }
+
+            if (finalAnswer.usfsa_judging) {
+                const usfs = finalAnswer.usfsa_judging;
+                document.getElementById('usfsa-current-level').textContent = usfs.current_level || '--';
+                document.getElementById('usfsa-next-goal').textContent = usfs.next_goal || '--';
+                document.getElementById('usfsa-explanation').textContent = usfs.explanation || '--';
+                
+                if (usfs.badge) {
+                    let parts = usfs.badge.split(' ');
+                    let bMain = parts.length > 0 ? parts[0] : '';
+                    let bSub = parts.length > 1 ? parts.slice(1).join(' ') : '';
+                    document.getElementById('usfsa-badge').innerHTML = bMain + (bSub ? '<br><span style="font-size: 9px; font-weight: 600;">'+bSub+'</span>' : '');
+                }
             }
         })
         .catch(err => {

@@ -18,8 +18,12 @@ type AdvancedBiometrics struct {
 	TakeoffFoot  string  `json:"support_foot"`
 	TakeoffType  string  `json:"takeoff_type"`
 	EdgeType     string  `json:"edge_type"`
-	LTilt        float64 `json:"l_tilt"`
-	RTilt        float64 `json:"r_tilt"`
+	LTilt          float64 `json:"l_tilt"`
+	RTilt          float64 `json:"r_tilt"`
+	EdgeConfidence float64 `json:"edge_confidence"`
+	BiomechDelta   float64 `json:"biomech_delta"`
+	AirTime        float64 `json:"air_time"`
+	MaxHeight      float64 `json:"max_height"`
 }
 
 type ClassifierResult struct {
